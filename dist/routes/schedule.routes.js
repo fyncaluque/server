@@ -54,39 +54,64 @@ router.post('/generate', auth_middleware_1.authMiddleware, async (req, res) => {
                 provider: provider,
             };
             const generated = await (0, openai_service_1.generateSchedule)(request);
-            const schedule = await prisma.schedule.create({
-                data: {
-                    profileId: profile.id,
-                    date: new Date(day.date),
-                    dayOfWeek: day.dayOfWeek,
-                    blocks: generated.schedule,
-                    suggestions: generated.suggestions,
-                    metadata: {
-                        provider: generated.provider,
-                        generatedAt: new Date().toISOString(),
-                        customPrompt: customPrompt || null,
-                        tips: generated.tips,
-                        weekStart,
-                        weekEnd,
-                    },
-                },
-            });
             generatedWeek.push({
-                id: schedule.id,
-                date: schedule.date.toISOString(),
-                dayOfWeek: schedule.dayOfWeek,
+                date: day.date,
+                dayOfWeek: day.dayOfWeek,
                 schedule: generated.schedule,
                 suggestions: generated.suggestions,
                 tips: generated.tips,
                 provider: generated.provider,
             });
         }
+        const weekStartDate = new Date(weekStart);
+        const weekEndDate = new Date(weekEnd);
+        const savedWeek = await prisma.$transaction(async (tx) => {
+            await tx.schedule.deleteMany({
+                where: {
+                    profileId: profile.id,
+                    date: {
+                        gte: weekStartDate,
+                        lte: weekEndDate,
+                    },
+                },
+            });
+            const createdDays = [];
+            for (const day of generatedWeek) {
+                const created = await tx.schedule.create({
+                    data: {
+                        profileId: profile.id,
+                        date: new Date(day.date),
+                        dayOfWeek: day.dayOfWeek,
+                        blocks: day.schedule,
+                        suggestions: day.suggestions,
+                        metadata: {
+                            provider: day.provider,
+                            generatedAt: new Date().toISOString(),
+                            customPrompt: customPrompt || null,
+                            tips: day.tips,
+                            weekStart,
+                            weekEnd,
+                        },
+                    },
+                });
+                createdDays.push({
+                    id: created.id,
+                    date: created.date.toISOString(),
+                    dayOfWeek: created.dayOfWeek,
+                    schedule: day.schedule,
+                    suggestions: day.suggestions,
+                    tips: day.tips,
+                    provider: day.provider,
+                });
+            }
+            return createdDays;
+        });
         res.json({
             success: true,
             data: {
                 weekStart,
                 weekEnd,
-                days: generatedWeek,
+                days: savedWeek,
             },
         });
     }

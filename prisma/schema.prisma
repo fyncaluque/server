@@ -66,5 +66,6 @@ model Schedule {
   updatedAt DateTime @updatedAt
 
   @@index([profileId, date])
+  @@unique([profileId, date])
   @@map("schedules")
 }

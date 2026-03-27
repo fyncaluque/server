@@ -51,7 +51,6 @@ router.post('/generate', authMiddleware, async (req: AuthenticatedRequest, res: 
     const weekEnd = weekDates[6].date;
 
     const generatedWeek: Array<{
-      id: string;
       date: string;
       dayOfWeek: string;
       schedule: any[];
@@ -71,28 +70,9 @@ router.post('/generate', authMiddleware, async (req: AuthenticatedRequest, res: 
 
       const generated = await generateSchedule(request);
 
-      const schedule = await prisma.schedule.create({
-        data: {
-          profileId: profile.id,
-          date: new Date(day.date),
-          dayOfWeek: day.dayOfWeek,
-          blocks: generated.schedule as any,
-          suggestions: generated.suggestions as any,
-          metadata: {
-            provider: generated.provider,
-            generatedAt: new Date().toISOString(),
-            customPrompt: customPrompt || null,
-            tips: generated.tips,
-            weekStart,
-            weekEnd,
-          },
-        },
-      });
-
       generatedWeek.push({
-        id: schedule.id,
-        date: schedule.date.toISOString(),
-        dayOfWeek: schedule.dayOfWeek,
+        date: day.date,
+        dayOfWeek: day.dayOfWeek,
         schedule: generated.schedule,
         suggestions: generated.suggestions,
         tips: generated.tips,
@@ -100,12 +80,69 @@ router.post('/generate', authMiddleware, async (req: AuthenticatedRequest, res: 
       });
     }
 
+    const weekStartDate = new Date(weekStart);
+    const weekEndDate = new Date(weekEnd);
+
+    const savedWeek = await prisma.$transaction(async (tx) => {
+      await tx.schedule.deleteMany({
+        where: {
+          profileId: profile.id,
+          date: {
+            gte: weekStartDate,
+            lte: weekEndDate,
+          },
+        },
+      });
+
+      const createdDays: Array<{
+        id: string;
+        date: string;
+        dayOfWeek: string;
+        schedule: any[];
+        suggestions: any[];
+        tips: string[];
+        provider: AIProvider;
+      }> = [];
+
+      for (const day of generatedWeek) {
+        const created = await tx.schedule.create({
+          data: {
+            profileId: profile.id,
+            date: new Date(day.date),
+            dayOfWeek: day.dayOfWeek,
+            blocks: day.schedule as any,
+            suggestions: day.suggestions as any,
+            metadata: {
+              provider: day.provider,
+              generatedAt: new Date().toISOString(),
+              customPrompt: customPrompt || null,
+              tips: day.tips,
+              weekStart,
+              weekEnd,
+            },
+          },
+        });
+
+        createdDays.push({
+          id: created.id,
+          date: created.date.toISOString(),
+          dayOfWeek: created.dayOfWeek,
+          schedule: day.schedule,
+          suggestions: day.suggestions,
+          tips: day.tips,
+          provider: day.provider,
+        });
+      }
+
+      return createdDays;
+    });
+
     res.json({
       success: true,
       data: {
         weekStart,
         weekEnd,
-        days: generatedWeek,
+        days: savedWeek,
       },
     });
   } catch (error: any) {
