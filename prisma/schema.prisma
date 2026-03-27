@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Profile linked to Supabase auth.users via authId
+model Profile {
+  id               String   @id @default(uuid())
+  authId           String   @unique // Supabase auth.users.id
+  email            String   @unique
+  name             String?
+
+  // Sleep
+  wakeUpTime       String   // "06:00"
+  bedTime          String   // "22:00"
+  sleepHours       Float    @default(8)
+
+  // Energy levels
+  peakEnergyStart  String   @default("09:00")
+  peakEnergyEnd    String   @default("12:00")
+  lowEnergyStart   String?  // "14:00"
+  lowEnergyEnd     String?  // "15:00"
+
+  // Lifestyle
+  lifestyle        String   @default("balanced") // "active" | "sedentary" | "balanced"
+  workType         String?  // "remote" | "office" | "hybrid" | "student" | "freelance"
+  workStart        String?  // "09:00"
+  workEnd          String?  // "17:00"
+  workDays         String[] // ["monday", "tuesday", ...]
+
+  // Preferences
+  goals            String[] // ["productivity", "fitness", "wellness", "learning", "social"]
+  interests        String[] // ["exercise", "meditation", "reading", "cooking", "music"]
+  exercisePreference String? // "morning" | "afternoon" | "evening" | "none"
+  mealTimes        Json?    // { breakfast: "07:00", lunch: "12:30", dinner: "19:00" }
+
+  // Fixed commitments
+  fixedCommitments Json?    // [{ name, start, end, days, category }]
+
+  // Relations
+  schedules        Schedule[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("profiles")
+}
+
+model Schedule {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  date      DateTime
+  dayOfWeek String   // "monday", "tuesday", etc.
+  blocks    Json     // Array of time blocks
+  suggestions Json?  // Suggested activities
+  metadata  Json?    // Generation metadata (prompt, model, tokens used)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, date])
+  @@map("schedules")
+}

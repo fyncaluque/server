@@ -1,0 +1,110 @@
+Server running on http://localhost:3000
+Health check: http://localhost:3000/api/health
+Generating schedule with provider: openrouter
+Generate schedule error: RateLimitError: 429 Provider returned error
+    at Function.generate (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\error.ts:96:14)
+    at OpenAI.makeStatusError (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\core.ts:462:21)
+    at OpenAI.makeRequest (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\core.ts:526:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async callOpenAICompatible (C:\Users\aqp.ti.d3\schedule-ai\server\src\services\openai.service.ts:128:20)
+    at async generateSchedule (C:\Users\aqp.ti.d3\schedule-ai\server\src\services\openai.service.ts:217:19)
+    at async <anonymous> (C:\Users\aqp.ti.d3\schedule-ai\server\src\routes\schedule.routes.ts:60:23) {
+  status: 429,
+  headers: {
+    'access-control-allow-origin': '*',
+    'cf-ray': '9e2fc671dd5de79b-SCL',
+    connection: 'keep-alive',
+    'content-type': 'application/json',
+    date: 'Fri, 27 Mar 2026 16:29:39 GMT',
+    'permissions-policy': 'payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com" "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")',
+    'referrer-policy': 'no-referrer, strict-origin-when-cross-origin',
+    server: 'cloudflare',
+    'transfer-encoding': 'chunked',
+    'x-content-type-options': 'nosniff'
+  },
+  request_id: undefined,
+  error: {
+    message: 'Provider returned error',
+    code: 429,
+    metadata: {
+      raw: 'meta-llama/llama-3.2-3b-instruct:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations',
+      provider_name: 'Venice',
+      is_byok: false
+    }
+  },
+  code: 429,
+  param: undefined,
+  type: undefined
+}
+Generating schedule with provider: openrouter
+Generate schedule error: APIError: 402 Provider returned error
+    at Function.generate (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\error.ts:103:12)
+    at OpenAI.makeStatusError (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\core.ts:462:21)
+    at OpenAI.makeRequest (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\core.ts:526:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async callOpenAICompatible (C:\Users\aqp.ti.d3\schedule-ai\server\src\services\openai.service.ts:128:20)
+    at async generateSchedule (C:\Users\aqp.ti.d3\schedule-ai\server\src\services\openai.service.ts:217:19)
+    at async <anonymous> (C:\Users\aqp.ti.d3\schedule-ai\server\src\routes\schedule.routes.ts:60:23) {
+  status: 402,
+  headers: {
+    'access-control-allow-origin': '*',
+    'cf-ray': '9e2fcc9ec8a20552-SCL',
+    connection: 'keep-alive',
+    'content-type': 'application/json',
+    date: 'Fri, 27 Mar 2026 16:33:53 GMT',
+    'permissions-policy': 'payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com" "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")',
+    'referrer-policy': 'no-referrer, strict-origin-when-cross-origin',
+    server: 'cloudflare',
+    'transfer-encoding': 'chunked',
+    'x-content-type-options': 'nosniff'
+  },
+  request_id: undefined,
+  error: {
+    message: 'Provider returned error',
+    code: 402,
+    metadata: {
+      raw: '{"error":"API key USD spend limit exceeded. Your account may still have USD balance, but this API key has reached its configured USD spending limit."}',
+      provider_name: 'Venice',
+      is_byok: false
+    }
+  },
+  code: 402,
+  param: undefined,
+  type: undefined
+}
+Generating schedule with provider: openrouter
+Generate schedule error: RateLimitError: 429 Provider returned error
+    at Function.generate (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\error.ts:96:14)
+    at OpenAI.makeStatusError (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\core.ts:462:21)
+    at OpenAI.makeRequest (C:\Users\aqp.ti.d3\schedule-ai\server\node_modules\openai\src\core.ts:526:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async callOpenAICompatible (C:\Users\aqp.ti.d3\schedule-ai\server\src\services\openai.service.ts:128:20)
+    at async generateSchedule (C:\Users\aqp.ti.d3\schedule-ai\server\src\services\openai.service.ts:217:19)
+    at async <anonymous> (C:\Users\aqp.ti.d3\schedule-ai\server\src\routes\schedule.routes.ts:60:23) {
+  status: 429,
+  headers: {
+    'access-control-allow-origin': '*',
+    'cf-ray': '9e2fcd272c86c732-SCL',
+    connection: 'keep-alive',
+    'content-type': 'application/json',
+    date: 'Fri, 27 Mar 2026 16:34:14 GMT',
+    'permissions-policy': 'payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com" "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")',
+    'referrer-policy': 'no-referrer, strict-origin-when-cross-origin',
+    server: 'cloudflare',
+    'transfer-encoding': 'chunked',
+    'x-content-type-options': 'nosniff'
+  },
+  request_id: undefined,
+  error: {
+    message: 'Provider returned error',
+    code: 429,
+    metadata: {
+      raw: 'meta-llama/llama-3.2-3b-instruct:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations',
+      provider_name: 'Venice',
+      is_byok: false
+    }
+  },
+  code: 429,
+  param: undefined,
+  type: undefined
+}
