@@ -14,6 +14,18 @@ REGLAS ESTRICTAS:
 8. Deja al menos 30 min de tiempo libre no estructurado.
 9. Las actividades de trabajo profundo/estudio deben ir en horas de máxima energía.
 10. No satures el horario - deja espacio para flexibilidad.
+11. El horario debe cubrir TODO el rango despierto: desde wakeUpTime hasta bedTime, sin huecos largos sin asignar.
+12. Si faltan minutos entre bloques, rellena con "break", "free_time" o una actividad ligera coherente.
+13. Interpreta instrucciones cortas o coloquiales del usuario (ej: "Trabajo de 9 a 1, estudio en la noche, gym 3 veces").
+14. Si el usuario menciona frecuencias (ej: "gym 3 veces", "estudiar 2 horas diarias"), debes respetarlas en la planificación del día que corresponda y mantener consistencia semanal al regenerar cada día.
+15. Si hay conflicto entre instrucciones, prioriza compromisos fijos, salud (sueño/comidas) y luego objetivos.
+
+INTERPRETACIÓN DE INSTRUCCIONES LIBRES:
+- "Trabajo de 9 a 1" => bloque fijo o semirrígido de trabajo 09:00-13:00.
+- "Estudio en la noche" => asignar bloque(s) de estudio en evening.
+- "Gym 3 veces" => distribuir entrenamiento en días alternos, evitando días consecutivos si es posible.
+- "Estudiar 2 horas diarias" => asegurar al menos 120 minutos de estudio por día.
+- Si una instrucción no trae hora exacta, infiere el mejor horario según energía y contexto.
 
 FORMATO DE RESPUESTA: Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
 {
@@ -111,12 +123,19 @@ ENERGÍA:
   }
 
   if (customPrompt) {
-    prompt += `\n\nINSTRUCCIONES ADICIONALES DEL USUARIO:\n${customPrompt}`;
+    prompt += `\n\nINSTRUCCIONES ADICIONALES DEL USUARIO (LENGUAJE NATURAL):\n${customPrompt}`;
+    prompt += `\n\nIMPORTANTE SOBRE ESTAS INSTRUCCIONES:
+- Debes interpretar correctamente frases cortas y coloquiales.
+- Convierte esas frases en restricciones concretas de horario (hora, duración, frecuencia, prioridad).
+- Si el usuario pide cantidades o frecuencia (ej: "3 veces", "2 horas diarias"), respétalas explícitamente.
+- Si faltan datos, infiere sin inventar contradicciones con el perfil.`;
   }
 
   prompt += `\n\n--- FIN DEL PERFIL ---
 
-Genera el horario completo desde que el usuario despierta hasta que se va a dormir. Incluye al menos 5 sugerencias de actividades adicionales que el usuario podría agregar basándote en sus intereses y objetivos. Incluye 3 tips personalizados.`;
+Genera el horario completo desde que el usuario despierta hasta que se va a dormir.
+REQUISITO DE COBERTURA: no dejes huecos largos sin bloque entre wakeUpTime y bedTime.
+Incluye al menos 5 sugerencias de actividades adicionales que el usuario podría agregar basándote en sus intereses y objetivos. Incluye 3 tips personalizados.`;
 
   return prompt;
 }

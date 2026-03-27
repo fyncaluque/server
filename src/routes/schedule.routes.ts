@@ -1,6 +1,5 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { z } from 'zod';
 import { AuthenticatedRequest, authMiddleware } from '../middleware/auth.middleware';
 import { generateSchedule, regeneratePartial } from '../services/openai.service';
 import { GenerateScheduleRequest, UserProfile, AIProvider } from '../types';
@@ -11,7 +10,7 @@ const prisma = new PrismaClient();
 // POST /api/schedule/generate - Generate a new schedule
 router.post('/generate', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { customPrompt, date, dayOfWeek, provider } = req.body;
+    const { customPrompt, date, provider } = req.body;
 
     // Get user profile
     const profile = await prisma.profile.findUnique({
@@ -26,72 +25,94 @@ router.post('/generate', authMiddleware, async (req: AuthenticatedRequest, res: 
       return;
     }
 
-    // Build request
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    const targetDay = dayOfWeek || getDayOfWeek(new Date(targetDate));
-
-    const request: GenerateScheduleRequest = {
-      profile: {
-        wakeUpTime: profile.wakeUpTime,
-        bedTime: profile.bedTime,
-        sleepHours: profile.sleepHours,
-        peakEnergyStart: profile.peakEnergyStart,
-        peakEnergyEnd: profile.peakEnergyEnd,
-        lowEnergyStart: profile.lowEnergyStart ?? undefined,
-        lowEnergyEnd: profile.lowEnergyEnd ?? undefined,
-        lifestyle: profile.lifestyle as UserProfile['lifestyle'],
-        workType: (profile.workType as UserProfile['workType']) ?? undefined,
-        workStart: profile.workStart ?? undefined,
-        workEnd: profile.workEnd ?? undefined,
-        workDays: profile.workDays,
-        goals: profile.goals as UserProfile['goals'],
-        interests: profile.interests as UserProfile['interests'],
-        exercisePreference: (profile.exercisePreference as UserProfile['exercisePreference']) ?? undefined,
-        mealTimes: (profile.mealTimes as unknown as UserProfile['mealTimes']) ?? undefined,
-        fixedCommitments: (profile.fixedCommitments as unknown as UserProfile['fixedCommitments']) ?? undefined,
-      },
-      date: targetDate,
-      dayOfWeek: targetDay,
-      customPrompt,
-      provider: provider as AIProvider | undefined,
+    const profileData: GenerateScheduleRequest['profile'] = {
+      wakeUpTime: profile.wakeUpTime,
+      bedTime: profile.bedTime,
+      sleepHours: profile.sleepHours,
+      peakEnergyStart: profile.peakEnergyStart,
+      peakEnergyEnd: profile.peakEnergyEnd,
+      lowEnergyStart: profile.lowEnergyStart ?? undefined,
+      lowEnergyEnd: profile.lowEnergyEnd ?? undefined,
+      lifestyle: profile.lifestyle as UserProfile['lifestyle'],
+      workType: (profile.workType as UserProfile['workType']) ?? undefined,
+      workStart: profile.workStart ?? undefined,
+      workEnd: profile.workEnd ?? undefined,
+      workDays: profile.workDays,
+      goals: profile.goals as UserProfile['goals'],
+      interests: profile.interests as UserProfile['interests'],
+      exercisePreference: (profile.exercisePreference as UserProfile['exercisePreference']) ?? undefined,
+      mealTimes: (profile.mealTimes as unknown as UserProfile['mealTimes']) ?? undefined,
+      fixedCommitments: (profile.fixedCommitments as unknown as UserProfile['fixedCommitments']) ?? undefined,
     };
 
-    // Generate with AI
-    const generated = await generateSchedule(request);
+    const baseDate = date ? new Date(date) : new Date();
+    const weekDates = getWeekDates(baseDate);
+    const weekStart = weekDates[0].date;
+    const weekEnd = weekDates[6].date;
 
-    // Save to database
-    const schedule = await prisma.schedule.create({
-      data: {
-        profileId: profile.id,
-        date: new Date(targetDate),
-        dayOfWeek: targetDay,
-        blocks: generated.schedule as any,
-        suggestions: generated.suggestions as any,
-        metadata: {
-          provider: generated.provider,
-          generatedAt: new Date().toISOString(),
-          customPrompt: customPrompt || null,
-          tips: generated.tips,
+    const generatedWeek: Array<{
+      id: string;
+      date: string;
+      dayOfWeek: string;
+      schedule: any[];
+      suggestions: any[];
+      tips: string[];
+      provider: AIProvider;
+    }> = [];
+
+    for (const day of weekDates) {
+      const request: GenerateScheduleRequest = {
+        profile: profileData,
+        date: day.date,
+        dayOfWeek: day.dayOfWeek,
+        customPrompt,
+        provider: provider as AIProvider | undefined,
+      };
+
+      const generated = await generateSchedule(request);
+
+      const schedule = await prisma.schedule.create({
+        data: {
+          profileId: profile.id,
+          date: new Date(day.date),
+          dayOfWeek: day.dayOfWeek,
+          blocks: generated.schedule as any,
+          suggestions: generated.suggestions as any,
+          metadata: {
+            provider: generated.provider,
+            generatedAt: new Date().toISOString(),
+            customPrompt: customPrompt || null,
+            tips: generated.tips,
+            weekStart,
+            weekEnd,
+          },
         },
-      },
-    });
+      });
 
-    res.json({
-      success: true,
-      data: {
+      generatedWeek.push({
         id: schedule.id,
-        date: schedule.date,
+        date: schedule.date.toISOString(),
         dayOfWeek: schedule.dayOfWeek,
         schedule: generated.schedule,
         suggestions: generated.suggestions,
         tips: generated.tips,
+        provider: generated.provider,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        weekStart,
+        weekEnd,
+        days: generatedWeek,
       },
     });
   } catch (error: any) {
     console.error('Generate schedule error:', error);
 
-    if (error.message?.includes('API key')) {
-      res.status(500).json({ success: false, error: 'OpenAI API key is not configured' });
+    if (error.message?.includes('No AI provider')) {
+      res.status(500).json({ success: false, error: 'No AI provider is configured. Please set at least one API key (Gemini, Groq, OpenRouter, or OpenAI) in the server .env file.' });
       return;
     }
 
@@ -267,6 +288,31 @@ router.delete('/:id', authMiddleware, async (req: AuthenticatedRequest, res: Res
 function getDayOfWeek(date: Date): string {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return days[date.getDay()];
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function getWeekDates(baseDate: Date): Array<{ date: string; dayOfWeek: string }> {
+  const date = new Date(baseDate);
+  date.setHours(0, 0, 0, 0);
+
+  const day = date.getDay(); // 0 sunday, 1 monday, ...
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + diffToMonday);
+
+  const week: Array<{ date: string; dayOfWeek: string }> = [];
+  for (let i = 0; i < 7; i++) {
+    const current = new Date(monday);
+    current.setDate(monday.getDate() + i);
+    week.push({
+      date: formatDate(current),
+      dayOfWeek: getDayOfWeek(current),
+    });
+  }
+  return week;
 }
 
 export default router;

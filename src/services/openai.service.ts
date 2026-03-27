@@ -203,20 +203,71 @@ function parseAndValidate(content: string): GeneratedSchedule {
   return parsed;
 }
 
+// ========== Provider Fallback ==========
+
+function getAvailableProviderIds(): AIProvider[] {
+  const order: AIProvider[] = ['gemini', 'groq', 'openrouter', 'openai'];
+  return order.filter((id) => {
+    if (id === 'gemini') return !!process.env.GEMINI_API_KEY;
+    if (id === 'groq') return !!process.env.GROQ_API_KEY;
+    if (id === 'openrouter') return !!process.env.OPENROUTER_API_KEY;
+    if (id === 'openai') return !!process.env.OPENAI_API_KEY;
+    return false;
+  });
+}
+
+async function tryWithFallback(
+  callFn: (provider: AIProvider) => Promise<string>,
+  preferredProvider?: AIProvider
+): Promise<{ content: string; provider: AIProvider }> {
+  const available = getAvailableProviderIds();
+  if (available.length === 0) {
+    throw new Error('No AI provider configured. Set at least one API key in .env');
+  }
+
+  const order: AIProvider[] =
+    preferredProvider && available.includes(preferredProvider)
+      ? [preferredProvider, ...available.filter((p) => p !== preferredProvider)]
+      : available;
+
+  if (preferredProvider) {
+    console.log(`Trying user-selected provider: ${preferredProvider}`);
+  }
+
+  const errors: string[] = [];
+
+  for (const provider of order) {
+    try {
+      console.log(`Trying provider: ${provider}`);
+      const content = await callFn(provider);
+      console.log(`Provider ${provider} succeeded`);
+      return { content, provider };
+    } catch (err: any) {
+      const msg = `${provider}: ${err.status || ''} ${err.message || err}`.trim();
+      console.warn(`Provider ${provider} failed — ${msg}`);
+      errors.push(msg);
+    }
+  }
+
+  throw new Error(
+    `All providers failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`
+  );
+}
+
 // ========== Public API ==========
 
 export async function generateSchedule(
   request: GenerateScheduleRequest
 ): Promise<GeneratedSchedule & { provider: AIProvider }> {
-  const provider = request.provider || getDefaultProvider();
   const systemPrompt = buildSystemPrompt();
   const userPrompt = buildUserPrompt(request);
 
-  console.log(`Generating schedule with provider: ${provider}`);
+  const { content, provider } = await tryWithFallback(
+    (p) => callProvider(p, systemPrompt, userPrompt),
+    request.provider
+  );
 
-  const content = await callProvider(provider, systemPrompt, userPrompt);
   const parsed = parseAndValidate(content);
-
   return { ...parsed, provider };
 }
 
@@ -225,7 +276,6 @@ export async function regeneratePartial(
   timeRange: { start: string; end: string },
   currentSchedule: GeneratedSchedule
 ): Promise<GeneratedSchedule & { provider: AIProvider }> {
-  const provider = request.provider || getDefaultProvider();
   const systemPrompt = buildSystemPrompt();
 
   const existingBlocks = currentSchedule.schedule
@@ -242,7 +292,11 @@ ${existingBlocks}
 
 Genera SOLO los bloques para el rango ${timeRange.start}-${timeRange.end}, manteniendo la misma estructura JSON.`;
 
-  const content = await callProvider(provider, systemPrompt, userPrompt, 2000);
+  const { content, provider } = await tryWithFallback(
+    (p) => callProvider(p, systemPrompt, userPrompt, 2000),
+    request.provider
+  );
+
   const partial = parseAndValidate(content);
 
   const keptBlocks = currentSchedule.schedule.filter(
