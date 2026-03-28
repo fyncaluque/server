@@ -126,3 +126,40 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+// ========== Chat Types ==========
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatContext {
+  profile: UserProfile;
+  schedule: {
+    id: string;
+    date: string;
+    dayOfWeek: string;
+    blocks: ScheduleBlock[];
+  }[];
+}
+
+export type ChatActionType =
+  | 'updateTimeRange'
+  | 'addActivity'
+  | 'removeActivity'
+  | 'updateProfile'
+  | 'conflict'
+  | 'refreshSchedule';
+
+export interface ChatAction {
+  type: ChatActionType;
+  data: any;
+}
+
+export interface ChatRequest {
+  message: string;
+  context: ChatContext;
+  history: ChatMessage[];
+  provider?: AIProvider;
+}

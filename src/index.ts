@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import profileRoutes from './routes/profile.routes';
 import scheduleRoutes from './routes/schedule.routes';
+import chatRoutes from './routes/chat.routes';
 import { getAvailableProviders } from './services/openai.service';
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.get('/api/providers', (_req, res) => {
 // Routes
 app.use('/api/profile', profileRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 404 handler
 app.use((_req, res) => {
