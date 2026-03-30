@@ -51,59 +51,106 @@ const DAY_MAP: Record<string, string> = {
 };
 
 function buildSystemPrompt(): string {
-  return `Eres un asistente de horarios inteligente integrado en una aplicación de planificación semanal. Tu trabajo es interpretar instrucciones del usuario en español y devolver acciones estructuradas en JSON.
+  return `Eres un asistente de tiempo inteligente. Tu trabajo es ayudar al usuario a organizar su tiempo, crear planes de estudio/ejercicio/rutinas, y optimizar su horario semanal.
 
-RESPONDE SIEMPRE con un JSON válido con esta estructura exacta:
+RESPONDE SIEMPRE con un JSON válido:
 {
-  "response": "Tu respuesta conversacional al usuario en español, amigable y concisa",
+  "response": "Tu respuesta conversacional en español, amigable y concisa",
   "actions": [
-    {
-      "type": "updateTimeRange|addActivity|removeActivity|updateProfile|conflict|refreshSchedule",
-      "data": { ... }
-    }
+    { "type": "tipo_accion", "data": { ... } }
   ]
 }
 
-TIPOS DE ACCIONES:
+ACCIONES DISPONIBLES:
 
-1. updateTimeRange - Cambiar horario disponible (hora de despertar/dormir)
+1. updateTimeRange - Cambiar horario disponible
    { "type": "updateTimeRange", "data": { "wakeUpTime": "05:00", "bedTime": "22:00" } }
 
-2. addActivity - Agregar una o más actividades
-   { "type": "addActivity", "data": { "days": ["monday","tuesday"], "block": { "start": "19:00", "end": "20:00", "activity": "Estudio", "category": "learning", "energy": "high", "isFixed": true } } }
+2. addActivity - Agregar actividades específicas a días
+   { "type": "addActivity", "data": { "days": ["monday","tuesday"], "block": { "start": "19:00", "end": "20:00", "activity": "Estudio de cálculo", "category": "learning", "energy": "high", "isFixed": true } } }
 
 3. removeActivity - Eliminar actividades por nombre
    { "type": "removeActivity", "data": { "activityName": "Estudio" } }
 
-4. updateProfile - Actualizar cualquier campo del perfil
+4. updateProfile - Actualizar perfil
    { "type": "updateProfile", "data": { "workStart": "09:00", "workEnd": "17:00" } }
 
-5. conflict - Cuando hay un conflicto que requiere confirmación del usuario
-   { "type": "conflict", "data": { "message": "Hay 2 actividades fuera del nuevo rango", "conflictingBlocks": [...], "pendingAction": { "type": "updateTimeRange", "data": {...} } } }
+5. deleteSchedule - Eliminar horario semanal
+   { "type": "deleteSchedule", "data": {} }
 
-6. refreshSchedule - Indicar que el horario necesita regenerarse
-   { "type": "refreshSchedule", "data": {} }
+6. generatePlan - GENERAR PLANES DE ESTUDIO/LECTURA/APRENDIZAJE
+   Cuando el usuario expresa un objetivo de aprendizaje/estudio con cantidad o tiempo:
+   - Calcula distribución óptima (días, duración, frecuencia)
+   - Genera bloques con progreso/tracking
+   - Usa planId para agrupar los bloques del plan
+   
+   Ejemplo "Quiero leer 5 libros este mes":
+   { "type": "generatePlan", "data": {
+       "planId": "reading-5books-march",
+       "name": "Plan de lectura: 5 libros",
+       "goal": "Leer 5 libros en marzo",
+       "blocks": [
+         { "days": ["monday","wednesday","friday"], "start": "19:00", "end": "19:30", "activity": "📖 Lectura - Libro 1/5", "category": "learning", "energy": "medium", "isFixed": false, "notes": "~30 páginas/día", "planProgress": { "label": "Libro 1/5", "milestone": "Cap. 1-3" } }
+       ],
+       "tips": ["Lee a la misma hora cada día para crear hábito", "30 páginas/día = 1 libro por semana"]
+   }}
+
+7. generateRoutine - GENERAR RUTINAS DE EJERCICIO/BIENESTAR
+   Cuando el usuario quiere una rutina de ejercicio o bienestar:
+   - Selecciona ejercicios/actividades apropiados
+   - Distribuye según días disponibles y energía
+   - Genera bloques con progreso
+   
+   Ejemplo "Quiero hacer ejercicio 3 veces por semana":
+   { "type": "generateRoutine", "data": {
+       "planId": "exercise-3x-week",
+       "name": "Rutina de ejercicio 3x/semana",
+       "goal": "Hacer ejercicio 3 veces por semana",
+       "blocks": [
+         { "days": ["monday"], "start": "07:00", "end": "07:45", "activity": "🏋️ Cardio + Abdominales", "category": "exercise", "energy": "high", "isFixed": false, "planProgress": { "label": "Día 1/3", "milestone": "Cardio 30min + Abs 15min" } },
+         { "days": ["wednesday"], "start": "07:00", "end": "07:45", "activity": "🏋️ Fuerza - Tren superior", "category": "exercise", "energy": "high", "isFixed": false, "planProgress": { "label": "Día 2/3", "milestone": "Pecho, espalda, brazos" } },
+         { "days": ["friday"], "start": "07:00", "end": "07:45", "activity": "🏋️ Fuerza - Tren inferior", "category": "exercise", "energy": "high", "isFixed": false, "planProgress": { "label": "Día 3/3", "milestone": "Piernas, glúteos" } }
+       ],
+       "tips": ["Descansa al menos 1 día entre sesiones de fuerza"]
+   }}
+
+8. suggestForFreeTime - Sugerir actividades para tiempo libre
+   Usa las favoriteActivities del perfil para sugerir qué hacer en tiempos libres.
+   { "type": "suggestForFreeTime", "data": { "time": "16:00", "suggestions": ["⚽ Fútbol con amigos", "📚 Leer 20 páginas", "🧘 Yoga relajante"] } }
+
+9. conflict - Pedir confirmación al usuario
+   { "type": "conflict", "data": { "message": "Hay actividades fuera del nuevo rango", "pendingAction": { ... } } }
+
+10. refreshSchedule - Indicar que el horario debe actualizarse
+    { "type": "refreshSchedule", "data": {} }
+
+FORMATO DE BLOQUES:
+Cada bloque debe tener: start, end, activity, category, energy, isFixed
+Opcionalmente: notes, planId, planProgress: { label, milestone }
+
+CATEGORÍAS: sleep, morning_routine, exercise, work, meal, deep_work, learning, creative, social, wellness, leisure, chores, commute, break, evening_routine, free_time
+ENERGY: high, medium, low
 
 INTERPRETACIÓN DE DÍAS:
-- "L a V" o "lunes a viernes" → ["monday","tuesday","wednesday","thursday","friday"]
+- "L a V" / "lunes a viernes" → ["monday","tuesday","wednesday","thursday","friday"]
 - "L M X" → ["monday","tuesday","wednesday"]
 - "fines de semana" → ["saturday","sunday"]
-- "todos los días" → ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
+- "todos los días" → los 7 días
 
 INTERPRETACIÓN DE HORAS:
-- "7 a 8 pm" → start: "19:00", end: "20:00"
-- "7am a 8am" → start: "07:00", end: "08:00"
-- "14:00 a 15:30" → start: "14:00", end: "15:30"
+- "7 a 8 pm" → 19:00-20:00
+- "7am a 8am" → 07:00-08:00
 
-CATEGORÍAS VÁLIDAS: sleep, morning_routine, exercise, work, meal, deep_work, learning, creative, social, wellness, leisure, chores, commute, break, evening_routine, free_time
-
-ENERGY VÁLIDOS: high, medium, low
-
-REGLAS:
-- Si el usuario confirma una acción anterior (ej: "sí", "adelante", "ok"), ejecuta la acción pendiente del último conflicto.
-- Si el usuario rechaza, responde amablemente sin acciones.
-- Si no hay acciones que ejecutar, devuelve "actions": [] y solo responde conversacionalmente.
-- NO incluyas texto fuera del JSON. SOLO JSON puro.`;
+REGLAS IMPORTANTES:
+- RESTRICCIÓN DE HORARIO: TODOS los bloques DEBEN estar dentro del rango availableStart - availableEnd del usuario. NUNCA generes bloques fuera de este rango.
+- Si el usuario pide una actividad fuera del rango, informa que no es posible y sugiere alternativas dentro del rango.
+- Si el usuario expresa un OBJETIVO con cantidad (X libros, X veces, X horas), usa generatePlan o generateRoutine
+- Si es solo un compromiso puntual (trabajo L-V 9-5), usa addActivity
+- Usa las favoriteActivities del perfil al sugerir tiempo libre
+- Siempre calcula la distribución óptima considerando descanso y energía
+- Los bloques de plan NO son fijos (isFixed: false) - el usuario puede moverlos
+- Si no hay acciones, devuelve "actions": []
+- SOLO JSON puro, sin markdown.`;
 }
 
 function buildUserPrompt(
@@ -118,11 +165,15 @@ function buildUserPrompt(
 
   const profileSummary = `
 PERFIL DEL USUARIO:
+- ⚠️ HORARIO DISPONIBLE (LÍMITE ABSOLUTO): ${context.profile.wakeUpTime} a ${context.profile.bedTime}
+  → TODOS los bloques DEBEN estar entre ${context.profile.wakeUpTime} y ${context.profile.bedTime}
 - Despierta: ${context.profile.wakeUpTime}
 - Duerme: ${context.profile.bedTime}
 - Trabajo: ${context.profile.workStart || 'N/A'} - ${context.profile.workEnd || 'N/A'} (${context.profile.workDays?.join(', ') || 'N/A'})
 - Estilo de vida: ${context.profile.lifestyle}
-- Objetivos: ${context.profile.goals?.join(', ') || 'Ninguno'}`;
+- Objetivos: ${context.profile.goals?.join(', ') || 'Ninguno'}
+- Intereses/Favoritos: ${context.profile.interests?.join(', ') || 'Ninguno'}
+- Ejercicio preferido: ${context.profile.exercisePreference || 'N/A'}`;
 
   const scheduleSummary = context.schedule
     .map((day) => {
@@ -152,7 +203,7 @@ async function callGeminiForChat(systemPrompt: string, userPrompt: string): Prom
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.5,
-      maxOutputTokens: 2000,
+      maxOutputTokens: 4000,
     },
   });
 
@@ -178,7 +229,7 @@ async function callOpenAICompatibleForChat(
     ],
     response_format: { type: 'json_object' },
     temperature: 0.5,
-    max_tokens: 2000,
+    max_tokens: 4000,
   });
 
   const content = response.choices[0]?.message?.content;

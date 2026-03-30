@@ -84,6 +84,13 @@ export interface ScheduleBlock {
   energy: EnergyLevel;
   isFixed: boolean; // true if it's a user-defined commitment
   notes?: string;
+  planId?: string;  // if part of a plan
+  planProgress?: PlanProgress;
+}
+
+export interface PlanProgress {
+  label: string;       // "Libro 1/5" / "Semana 2/4" / "Día 3 de rutina"
+  milestone?: string;  // "Cap. 3-6" / "Cardio + Piernas" 
 }
 
 export interface ActivitySuggestion {
@@ -149,6 +156,10 @@ export type ChatActionType =
   | 'addActivity'
   | 'removeActivity'
   | 'updateProfile'
+  | 'generatePlan'
+  | 'generateRoutine'
+  | 'suggestForFreeTime'
+  | 'deleteSchedule'
   | 'conflict'
   | 'refreshSchedule';
 

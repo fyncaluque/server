@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:4200', 'http://localhost:4300'],
+  origin: ['http://localhost:4200', 'http://localhost:60171'],
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
